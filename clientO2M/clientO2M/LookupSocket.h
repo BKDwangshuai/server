@@ -39,6 +39,13 @@ public:
 
 	MySQLInterface m_sqlUser;		//访问MySQL
 	void saveDataToMySQL();			//保存到MySQL
+	void SaveTempDataToMysql();		//保存临时数据
+	void SaveCounterToMysql();		//保存序列号计数器
+	void SaveFaultToMysql();			//保存错误信息
+	string staSolLevFauLas;			//溶剂标志
+	string staInkLevFauLas;			//墨水标志
+	bool boTempUp;					//是否为更新
+	bool boCounterUP;				//计数器是否为更新
 	bool isLive;						//线程活着
 	static	DWORD WINAPI	SaveData(void *pParam);	//保存线程 
 	HANDLE m_hSaveThread;						//保存线程句柄
@@ -62,7 +69,7 @@ public:
 //	CclientO2MDlg		*m_pClientDlg;				//主窗口指针
 	SOCKET			m_s;						//套接字
 	CString			m_strWord;					//单词
-	CString			m_strMeaning;				//单词含义
+	//CString			m_strMeaning;				//单词含义
 	PACKETHDR		m_hdrRecv;					//接收数据包头
 	int eid;
 	/////////////////////////////

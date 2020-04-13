@@ -50,15 +50,20 @@ public:
 	WSAOVERLAPPED	*MapEventToOverlapped(int nIndex);		//根据事件句柄序号得到OVERLAPPED指针
 	afx_msg void OnBnClickedButtonStart();
 	afx_msg void OnBnClickedButtonClose();
-	CIPAddressCtrl m_ctlServIP;
-	afx_msg void OnBnClickedButtonSend();
-	CEdit m_editTest;
+	//CIPAddressCtrl m_ctlServIP;
+
+	//CEdit m_editTest;
 	void initMysql();
-	afx_msg void OnBnClickedButtonCode();
+
 	//wstring Utf8ToUnicode(const string& str);
 	HANDLE			m_hFindThread;					//工作线程句柄
 	static	DWORD WINAPI	FindThread(void *pParam);	//查看各设备工作状态线程 
+	BOOL CloseThread(HANDLE tempHandle);				//关闭线程
 	BOOL serverRun;									//程序运行状态
 	int changeId;									//记录最新id
 	MySQLInterface mysqlUser;						//MySQL操作
+	afx_msg void OnBnClickedButtonRestart();
+	int typeBut;										//点击的按钮
+	static UINT ButtonThread(LPVOID *pParam);//按钮线程函数
+	CWinThread *m_pThread;
 };

@@ -11,7 +11,7 @@
 #include <iostream>
 #include <stdlib.h>
 #include "time.h"
-
+//#include "resource.h"
 using namespace std;
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -34,8 +34,6 @@ CclientO2MDlg::CclientO2MDlg(CWnd* pParent /*=nullptr*/)
 void CclientO2MDlg::DoDataExchange(CDataExchange* pDX)
 {
 	CDialogEx::DoDataExchange(pDX);
-	DDX_Control(pDX, IDC_IPADDRESS_IP, m_ctlServIP);
-	DDX_Control(pDX, IDC_EDIT1, m_editTest);
 }
 
 BEGIN_MESSAGE_MAP(CclientO2MDlg, CDialogEx)
@@ -43,8 +41,7 @@ BEGIN_MESSAGE_MAP(CclientO2MDlg, CDialogEx)
 	ON_WM_QUERYDRAGICON()
 	ON_BN_CLICKED(IDC_BUTTON_START, &CclientO2MDlg::OnBnClickedButtonStart)
 	ON_BN_CLICKED(IDC_BUTTON_CLOSE, &CclientO2MDlg::OnBnClickedButtonClose)
-	ON_BN_CLICKED(IDC_BUTTON_SEND, &CclientO2MDlg::OnBnClickedButtonSend)
-	ON_BN_CLICKED(IDC_BUTTON_CODE, &CclientO2MDlg::OnBnClickedButtonCode)
+	ON_BN_CLICKED(IDC_BUTTON_RESTART, &CclientO2MDlg::OnBnClickedButtonRestart)
 END_MESSAGE_MAP()
 
 
@@ -60,24 +57,28 @@ BOOL CclientO2MDlg::OnInitDialog()
 	SetIcon(m_hIcon, FALSE);		// 设置小图标
 
 
-	int			reVal;			//返回值	
+	//int			reVal;			//返回值	
 
-	WSADATA wsaData;			//初始化套接字动态库	
-	if ((reVal = WSAStartup(0x0202, &wsaData)) != 0)
-	{
-		printf("初始化套接字动态库错误%d\n", WSAGetLastError());
-		return FALSE;
-	}
-	// TODO: 在此添加额外的初始化代码
-	initMysql();
-	//m_ctlServIP.SetAddress(192, 168, 0, 100);		//服务器地址
-	m_ctlServIP.SetAddress(127, 0, 0, 1);		//服务器地址
-	if (StartServer())
-	{
-	}
-	else
-	{
-	}
+	//WSADATA wsaData;			//初始化套接字动态库	
+	//if ((reVal = WSAStartup(0x0202, &wsaData)) != 0)
+	//{
+	//	printf("初始化套接字动态库错误%d\n", WSAGetLastError());
+	//	return FALSE;
+	//}
+	//// TODO: 在此添加额外的初始化代码
+	//initMysql();
+	////m_ctlServIP.SetAddress(192, 168, 0, 100);		//服务器地址
+	//m_ctlServIP.SetAddress(127, 0, 0, 1);		//服务器地址
+	//if (StartServer())
+	//{
+	//}
+	//else
+	//{
+	//}
+	//typeBut = 0;
+	//OnBnClickedButtonStart();
+	typeBut = 88;
+	m_pThread = AfxBeginThread((AFX_THREADPROC)ButtonThread, this);
 	return TRUE;  // 除非将焦点设置到控件，否则返回 TRUE
 }
 
@@ -347,6 +348,34 @@ void CclientO2MDlg::OnBnClickedButtonStart()
 	//m_ctlServIP.EnableWindow(FALSE);
 	//(CEdit*)GetDlgItem(IDC_CLIENT_PORT_EDIT)->EnableWindow(FALSE);
 	//(CButton*)GetDlgItem(IDC_CONNECT_BUTTON)->EnableWindow(FALSE);
+	if (typeBut==0)
+	{
+		typeBut = 1;
+		m_pThread = AfxBeginThread((AFX_THREADPROC)ButtonThread, this);
+	}
+
+
+	int			reVal;			//返回值	
+
+	WSADATA wsaData;			//初始化套接字动态库	
+	if ((reVal = WSAStartup(0x0202, &wsaData)) != 0)
+	{
+		printf("初始化套接字动态库错误%d\n", WSAGetLastError());
+		return ;
+	}
+	// TODO: 在此添加额外的初始化代码
+	initMysql();
+	//m_ctlServIP.SetAddress(192, 168, 0, 100);		//服务器地址
+	//m_ctlServIP.SetAddress(127, 0, 0, 1);		//服务器地址
+	if (StartServer())
+	{
+	}
+	else
+	{
+	}
+	//设置启动服务器按钮无效
+	(CButton*)GetDlgItem(IDC_BUTTON_START)->EnableWindow(FALSE);
+	typeBut = 0;
 }
 
 
@@ -374,16 +403,42 @@ void CclientO2MDlg::OnBnClickedButtonClose()
 	//delete m_pLookupSocket;							//删除CLookupSocket指针
 	//m_pLookupSocket = NULL;
 	//m_nEventTotal=0;
-	CloseServer();									//释放套接字资源
-}
 
-
-void CclientO2MDlg::OnBnClickedButtonSend()
-{
-	// TODO: 在此添加控件通知处理程序代码
-	//CString teststr = _T("hello");
-	//m_pLookupSocket->Lookup(teststr); //发送数据 (
-
+	if (!GetDlgItem(IDC_BUTTON_START)->IsWindowEnabled())
+	{
+		if (typeBut == 0)
+		{
+			typeBut = 3;
+			m_pThread = AfxBeginThread((AFX_THREADPROC)ButtonThread, this);
+		}
+		serverRun = FALSE;
+		//WaitForSingleObject(m_hFindThread, INFINITE);	//等待发现线程退出
+		CloseThread(m_hFindThread);
+		CloseHandle(m_hFindThread);
+		for (auto iter = theApp.m_equipMap.begin(); iter != theApp.m_equipMap.end();)
+		{
+			if (iter->second->m_bRunning)
+			{
+				CloseEquip(iter->second);
+			}
+			delete iter->second;
+			iter->second = NULL;
+			theApp.m_equipMap.erase(iter);
+		}
+		for (auto iterVec = theApp.m_deleteVec.begin(); iterVec != theApp.m_deleteVec.end();)
+		{
+			delete (*iterVec);
+			(*iterVec) = NULL;
+			iterVec = theApp.m_deleteVec.erase(iterVec);
+		}
+		CloseServer();									//释放套接字资源
+		(CButton*)GetDlgItem(IDC_BUTTON_START)->EnableWindow(TRUE);
+		if (typeBut==3)
+		{
+			typeBut = 0;
+		}
+		
+	}
 }
 
 
@@ -425,14 +480,14 @@ void CclientO2MDlg::initMysql()
 	ctablestr = "CREATE TABLE IF NOT EXISTS equipchange (id INT NOT NULL AUTO_INCREMENT,eid INT NOT NULL,ectype INT NOT NULL,ectime DATETIME NOT NULL,PRIMARY KEY(id))ENGINE=InnoDB DEFAULT CHARSET=utf8;";
 	mysqlUser.createdbTable(ctablestr);
 
-	testinsert = "drop trigger if exists equip_add;";
-	mysqlUser.writeDataToDB(testinsert);
-	testinsert = "create trigger equip_add after insert on equipment for each row insert equipchange(eid,ectype,ectime) values (new.eid,1,now());";
-	mysqlUser.writeDataToDB(testinsert);
-
 	testinsert = "drop trigger if exists equip_up;";
 	mysqlUser.writeDataToDB(testinsert);
-	testinsert = "create trigger equip_up after update on equipment for each row insert equipchange(eid,ectype,ectime) values (new.eid,2,now());";
+	testinsert = "create trigger equip_up after update on equipment for each row insert equipchange(eid,ectype,ectime) values (new.eid,1,now());";
+	mysqlUser.writeDataToDB(testinsert);
+
+	testinsert = "drop trigger if exists equip_add;";
+	mysqlUser.writeDataToDB(testinsert);
+	testinsert = "create trigger equip_add after insert on equipment for each row insert equipchange(eid,ectype,ectime) values (new.eid,2,now());";
 	mysqlUser.writeDataToDB(testinsert);
 
 	testinsert = "drop trigger if exists equip_del;";
@@ -443,6 +498,12 @@ void CclientO2MDlg::initMysql()
 	ctablestr = "CREATE TABLE IF NOT EXISTS data (did INT NOT NULL AUTO_INCREMENT,dtime DATETIME NOT NULL,dvalue INT NOT NULL,dcnl INT NOT NULL COMMENT '标识',equipment_id INT NOT NULL,PRIMARY KEY(did),FOREIGN KEY(equipment_id) REFERENCES equipment(eid) on delete cascade on update cascade)ENGINE=InnoDB DEFAULT CHARSET=utf8;";
 	mysqlUser.createdbTable(ctablestr);
 	testinsert = "CREATE INDEX eid_dcnl_dtime_Index ON `data`(`equipment_id`, `dcnl`, `dtime`);";//创建组合索引
+	mysqlUser.writeDataToDB(testinsert);
+
+	//临时数据表
+	ctablestr = "CREATE TABLE IF NOT EXISTS tempdata (tid INT NOT NULL AUTO_INCREMENT,tvalue INT NOT NULL,tcnl INT NOT NULL COMMENT '标识',equipment_id INT NOT NULL,PRIMARY KEY(did),FOREIGN KEY(equipment_id) REFERENCES equipment(tid) on delete cascade on update cascade)ENGINE=InnoDB DEFAULT CHARSET=utf8;";
+	mysqlUser.createdbTable(ctablestr);
+	testinsert = "CREATE INDEX eid_dcnl_dtime_Index ON `tempdata`(`equipment_id`, `tcnl`);";//创建组合索引
 	mysqlUser.writeDataToDB(testinsert);
 	//打印数据表
 	//cout << "打印数据表的cprint为blob类型，保存字节" << endl << endl;
@@ -526,17 +587,6 @@ void CclientO2MDlg::initMysql()
 	m_hFindThread = CreateThread(NULL, 0, FindThread, this, 0, &dwThreadId);
 }
 
-void CclientO2MDlg::OnBnClickedButtonCode()
-{
-	// TODO: 在此添加控件通知处理程序代码
-	//m_pLookupSocket->filePath = "E:\\Program Files (x86)\\Windows CE Tools\\Storage Card\\User\\Label\\Default.lab";
-	//CString teststr(m_pLookupSocket->filePath.c_str());
-	//int findPos=teststr.ReverseFind('\\');
-	//CString sendStr = teststr.Right(teststr.GetLength()-findPos-1);
-	//m_pLookupSocket->SendCstring(LAB_NAME, sendStr);
-	//Sleep(10);
-	//m_pLookupSocket->SendFile(PRINT_CE, m_pLookupSocket->filePath);
-}
 
 //wstring CclientO2MDlg::Utf8ToUnicode(const string& str) {
 //	// 预算-缓冲区中宽字节的长度    
@@ -563,12 +613,74 @@ bool CclientO2MDlg::StartEquip(PEQUIPMENT tempEquip)
 	servAddr.sin_port = htons(tempEquip->m_sServPort);
 	int nServLen = sizeof(servAddr);
 
-	nRet = connect(tempEquip->m_sHost, (SOCKADDR*)&servAddr, nServLen);
-	if (SOCKET_ERROR == nRet)
+	//nRet = connect(tempEquip->m_sHost, (SOCKADDR*)&servAddr, nServLen);
+		// 设置为非阻塞的socket  
+	int iMode = 1;
+	ioctlsocket(tempEquip->m_sHost, FIONBIO, (u_long FAR*)&iMode);
+
+
+	// 定义服务端  
+	SOCKADDR_IN addrSrv;
+	addrSrv.sin_addr.S_un.S_addr = inet_addr("127.0.0.1");
+	addrSrv.sin_family = AF_INET;
+	addrSrv.sin_port = htons(8888);
+
+
+	// 超时时间  
+	struct timeval tm;
+	tm.tv_sec = 5;
+	tm.tv_usec = 0;
+	int ret = -1;
+
+
+	// 尝试去连接服务端  
+	if (-1 != connect(tempEquip->m_sHost, (SOCKADDR*)&addrSrv, sizeof(SOCKADDR)))
+	{
+		ret = 1; // 连接成功  
+	}
+	else
+	{
+		fd_set set;
+		FD_ZERO(&set);
+		FD_SET(tempEquip->m_sHost, &set);
+
+		if (select(-1, NULL, &set, NULL, &tm) <= 0)
+		{
+			ret = -1; // 有错误(select错误或者超时)  
+		}
+		else
+		{
+			int error = -1;
+			int optLen = sizeof(int);
+			getsockopt(tempEquip->m_sHost, SOL_SOCKET, SO_ERROR, (char*)&error, &optLen);
+
+			// 之所以下面的程序不写成三目运算符的形式， 是为了更直观， 便于注释  
+			if (0 != error)
+			{
+				ret = -1; // 有错误  
+			}
+			else
+			{
+				ret = 1;  // 无错误  
+			}
+		}
+	}
+
+
+	// 设回为阻塞socket  
+	iMode = 0;
+	ioctlsocket(tempEquip->m_sHost, FIONBIO, (u_long FAR*)&iMode); //设置为阻塞模式 
+	if (SOCKET_ERROR == ret)
 	{
 		//AfxMessageBox(_T("连接服务器失败！"));
 		return false;
 	}
+
+	//if (SOCKET_ERROR == nRet)
+	//{
+	//	//AfxMessageBox(_T("连接服务器失败！"));
+	//	return false;
+	//}
 
 	//客户端运行
 	tempEquip->m_bRunning = TRUE;
@@ -592,23 +704,27 @@ bool CclientO2MDlg::StartEquip(PEQUIPMENT tempEquip)
 bool CclientO2MDlg::CloseEquip(PEQUIPMENT tempEquip)
 {
 	tempEquip->m_bRunning = FALSE;								//设置客户端运行状态
-	WaitForSingleObject(tempEquip->m_hReceiveThread, INFINITE);	//等待工作线程退出
-	//WaitForSingleObject(m_hWorkerThread, INFINITE);	//等待工作线程退出
-	DWORD dwRet = 0;
-	MSG msg;
-	while (TRUE)
-	{
-		dwRet = WaitForSingleObject(tempEquip->m_hWorkerThread, 50);
-		if (dwRet == WAIT_TIMEOUT)
-		{
-			PeekMessage(&msg, NULL, 0, 0, PM_NOREMOVE);
-			continue;
-		}
-		else
-		{
-			break;
-		}
-	}
+	//WaitForSingleObject(tempEquip->m_hReceiveThread, INFINITE);	//等待工作线程退出
+	////WaitForSingleObject(m_hWorkerThread, INFINITE);	//等待工作线程退出
+	//DWORD dwRet = 0;
+	//MSG msg;
+	//while (TRUE)
+	//{
+	//	dwRet = WaitForSingleObject(tempEquip->m_hWorkerThread, 50);
+	//	if (dwRet == WAIT_TIMEOUT)
+	//	{
+	//		PeekMessage(&msg, NULL, 0, 0, PM_NOREMOVE);
+	//		continue;
+	//	}
+	//	else
+	//	{
+	//		break;
+	//	}
+	//}
+	CloseThread(tempEquip->m_hReceiveThread);
+	CloseHandle(tempEquip->m_hReceiveThread);
+	CloseThread(tempEquip->m_hWorkerThread);
+	CloseHandle(tempEquip->m_hWorkerThread);
 	delete tempEquip->m_pLookupSocket;							//删除CLookupSocket指针
 	tempEquip->m_pLookupSocket = NULL;
 	tempEquip->m_nEventTotal = 0;
@@ -653,7 +769,7 @@ DWORD WINAPI CclientO2MDlg::FindThread(void *pParam)
 			}
 			else
 			{
-				if ((++(*iterVec)->connetTimes) > 3)
+				if ((++(*iterVec)->connetTimes) > 0)
 				{
 					string ctablestr = "select ename from `equipment` where eid =" + to_string((*iterVec)->m_id) + ";";
 					vector<vector<string>> tempcVec;
@@ -663,6 +779,8 @@ DWORD WINAPI CclientO2MDlg::FindThread(void *pParam)
 						string testinsert = "insert into fault (ftime,fvalue,fcnl,equipment_id) values(now(),'连接设备" + ((*tempcVec.begin())[0]) + "失败！',1," + to_string((*iterVec)->m_id) + ");";
 						pClientDlg->mysqlUser.writeDataToDB(testinsert);
 					}
+					delete (*iterVec);
+					(*iterVec) = NULL;
 					iterVec = theApp.m_deleteVec.erase(iterVec);
 				}
 				else
@@ -685,7 +803,7 @@ DWORD WINAPI CclientO2MDlg::FindThread(void *pParam)
 
 				switch (atoi((*iter1)[2].c_str()))
 				{
-				case 1:
+				case 1://更新
 				{
 					auto upIter = theApp.m_equipMap.find(atoi((*iter1)[1].c_str()));
 					if (upIter != theApp.m_equipMap.end())
@@ -693,11 +811,13 @@ DWORD WINAPI CclientO2MDlg::FindThread(void *pParam)
 						upIter->second->m_bRunning = FALSE;
 						if (pClientDlg->CloseEquip(upIter->second))
 						{
+							delete upIter->second;
+							upIter->second = NULL;
 							theApp.m_equipMap.erase(upIter);
 						}
 					}
 				}
-				case 2:
+				case 2://插入
 				{
 					auto oneIter = oneVec.begin();
 					if (oneIter == oneVec.end())
@@ -713,23 +833,35 @@ DWORD WINAPI CclientO2MDlg::FindThread(void *pParam)
 						tempEquip->m_bRunning = FALSE;
 						tempEquip->m_pLookupSocket = NULL;
 						tempEquip->m_nEventTotal = 0;
-						pClientDlg->StartEquip(tempEquip);
-						CString fuckstr = _T("fuck");
-						tempEquip->m_pLookupSocket->Lookup(fuckstr);
-						theApp.m_equipMap.insert(make_pair(tempEquip->m_id, tempEquip));
+						//pClientDlg->StartEquip(tempEquip);
+						//CString fuckstr = _T("fuck");
+						//tempEquip->m_pLookupSocket->Lookup(fuckstr);
+						//theApp.m_equipMap.insert(make_pair(tempEquip->m_id, tempEquip));
+						if (pClientDlg->StartEquip(tempEquip))
+						{
+							CString fuckstr = _T("fuck");
+							tempEquip->m_pLookupSocket->Lookup(fuckstr);
+							theApp.m_equipMap.insert(make_pair(tempEquip->m_id, tempEquip));
+						}
+						else
+						{
+							theApp.m_deleteVec.push_back(tempEquip);
+						}
 					}
 
 					for (auto detIter= theApp.m_deleteVec.begin();detIter!=theApp.m_deleteVec.end();detIter++)
 					{
 						if ((*detIter)->m_id== atoi((*iter1)[2].c_str()))
 						{
+							delete (*detIter);
+							(*detIter) = NULL;
 							theApp.m_deleteVec.erase(detIter);
 							break;
 						}
 					}
 					break;
 				}
-				case 3:
+				case 3://删除
 				{
 					auto delIter = theApp.m_equipMap.find(atoi((*iter1)[1].c_str()));
 					if (delIter != theApp.m_equipMap.end())
@@ -737,6 +869,8 @@ DWORD WINAPI CclientO2MDlg::FindThread(void *pParam)
 						delIter->second->m_bRunning = FALSE;
 						if (pClientDlg->CloseEquip(delIter->second))
 						{
+							delete delIter->second;
+							delIter->second = NULL;
 							theApp.m_equipMap.erase(delIter);
 						}
 					}
@@ -746,6 +880,8 @@ DWORD WINAPI CclientO2MDlg::FindThread(void *pParam)
 						{
 							if ((*iterVec)->m_id == atoi((*iter1)[1].c_str()))
 							{
+								delete (*iterVec);
+								(*iterVec) = NULL;
 								theApp.m_deleteVec.erase(iterVec);
 								break;
 							}
@@ -755,11 +891,8 @@ DWORD WINAPI CclientO2MDlg::FindThread(void *pParam)
 				}
 				default:
 					break;
-					
 				}
-
 			}
-
 		}
 		Sleep(1000);
 	}
@@ -912,10 +1045,144 @@ BOOL CclientO2MDlg::CloseServer()
 {
 	m_bRunning = FALSE;								//设置服务器运行状态
 
-	WaitForSingleObject(m_hThreadService, INFINITE);//等待服务线程退出
+	//WaitForSingleObject(m_hThreadService, INFINITE);//等待服务线程退出m_hFindThread
+	CloseThread(m_hThreadService);
 	CloseHandle(m_hThreadService);					//释放资源
 
 	closesocket(m_sListen);							//关闭监听套接字
 	WSACleanup();									//释放套接字资源
 	return TRUE;
+}
+
+BOOL CclientO2MDlg::CloseThread(HANDLE tempHandle)
+{
+	DWORD dwRet = 0;
+	MSG msg;
+	while (TRUE)
+	{
+		//wait for m_hThread to be over，and wait for
+		//QS_ALLINPUT（Any message is in the queue）
+		dwRet = MsgWaitForMultipleObjects(1, &tempHandle, FALSE, INFINITE, QS_ALLINPUT);
+		switch (dwRet)
+		{
+		case WAIT_OBJECT_0:
+			break; //break the loop
+		case WAIT_OBJECT_0 + 1:
+			//get the message from Queue
+			//and dispatch it to specific window
+			PeekMessage(&msg, NULL, 0, 0, PM_REMOVE);
+			DispatchMessage(&msg);
+			continue;
+		default:
+			break; // unexpected failure
+		}
+		break;
+	}
+	//CloseHandle(*tempHandle);
+	return TRUE;
+}
+
+void CclientO2MDlg::OnBnClickedButtonRestart()
+{
+	// TODO: 在此添加控件通知处理程序代码
+	if (typeBut == 0)
+	{
+		typeBut = 2;
+		m_pThread = AfxBeginThread((AFX_THREADPROC)ButtonThread, this);
+	}
+	OnBnClickedButtonClose();
+	OnBnClickedButtonStart();
+	typeBut = 0;
+}
+
+UINT CclientO2MDlg::ButtonThread(LPVOID *pParam)
+{
+
+	CclientO2MDlg* tempDlg = (CclientO2MDlg*)pParam;
+	CString tempStr = _T("STARTING");
+	int timeRe = 0;
+	switch (tempDlg->typeBut)
+	{
+	case 0:
+		//tempDlg->GetDlgItem(IDC_STATIC_TABLE)->SetWindowText(_T("STARTING"));
+		//::SetWindowText(::GetDlgItem(tempDlg->m_hWnd, IDC_STATIC_TABLE), _T("STARTING"));
+		//tempStr = _T("STARTING");
+		//while (tempDlg->GetDlgItem(IDC_BUTTON_START)->IsWindowEnabled())
+		//{
+		//	if ((timeRe++)<5)
+		//	{
+		//		tempStr += _T(".");
+		//	}
+		//	else
+		//	{ 
+		//		timeRe = 0;
+		//		tempStr = _T("STARTING");
+		//	}
+		//	::SetWindowText(::GetDlgItem(tempDlg->m_hWnd, IDC_STATIC_TABLE), tempStr);
+		//	Sleep(50);
+		//}
+		//::SetWindowText(::GetDlgItem(tempDlg->m_hWnd, IDC_STATIC_TABLE), L"RUNNING");
+		break;
+	
+	case 1:
+		tempStr = _T("STARTING");
+		while (tempDlg->typeBut == 1)
+		{
+			if ((timeRe++) < 5)
+			{
+				tempStr += _T(".");
+			}
+			else
+			{
+				timeRe = 0;
+				tempStr = _T("STARTING");
+			}
+			::SetWindowText(::GetDlgItem(tempDlg->m_hWnd, IDC_STATIC_TABLE), tempStr);
+			Sleep(50);
+		}
+		::SetWindowText(::GetDlgItem(tempDlg->m_hWnd, IDC_STATIC_TABLE), L"RUNNING");
+		break;
+	case 2:
+		tempStr = _T("RESTARTING");
+		while (tempDlg->typeBut == 2)
+		{
+			if ((timeRe++) < 5)
+			{
+				tempStr += _T(".");
+			}
+			else
+			{
+				timeRe = 0;
+				tempStr = _T("RESTARTING");
+			}
+			::SetWindowText(::GetDlgItem(tempDlg->m_hWnd, IDC_STATIC_TABLE), tempStr);
+			Sleep(50);
+		}
+		::SetWindowText(::GetDlgItem(tempDlg->m_hWnd, IDC_STATIC_TABLE), L"RUNNING");
+		break;
+	case 3:
+		tempStr = _T("CLOSING");
+		while (tempDlg->typeBut == 3)
+		{
+			if ((timeRe++) < 5)
+			{
+				tempStr += _T(".");
+			}
+			else
+			{
+				timeRe = 0;
+				tempStr = _T("CLOSING");
+			}
+			::SetWindowText(::GetDlgItem(tempDlg->m_hWnd, IDC_STATIC_TABLE), tempStr);
+			Sleep(50);
+		}
+		::SetWindowText(::GetDlgItem(tempDlg->m_hWnd, IDC_STATIC_TABLE), L"CLOSE");
+		break;
+	default:
+		tempDlg->typeBut = 0;
+		tempDlg->OnBnClickedButtonStart();
+		break;
+	}
+	//tempDlg->typeBut = 0;
+	return 0;
 }
