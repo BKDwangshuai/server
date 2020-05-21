@@ -195,6 +195,11 @@ DWORD WINAPI CclientO2MDlg::WorkerThread(void *pParam)
 			&dwFlags);
 		if (bRet == FALSE || dwBytesTraned == 0)//发生错误
 		{
+			int errInt = WSAGetLastError();
+			if (errInt==995)
+			{
+				continue;
+			}
 			return -1;
 
 		}
@@ -423,7 +428,7 @@ void CclientO2MDlg::OnBnClickedButtonClose()
 			}
 			delete iter->second;
 			iter->second = NULL;
-			theApp.m_equipMap.erase(iter);
+			iter=theApp.m_equipMap.erase(iter);
 		}
 		for (auto iterVec = theApp.m_deleteVec.begin(); iterVec != theApp.m_deleteVec.end();)
 		{
@@ -441,7 +446,86 @@ void CclientO2MDlg::OnBnClickedButtonClose()
 	}
 }
 
+void CclientO2MDlg::initExpert()
+{
+	string findStr = "SHOW DATABASES LIKE 'expert';";
+	vector<vector<string>> tempVec;
+	mysqlUser.getDatafromDB(findStr, tempVec);
+	if (tempVec.size()>0)
+	{
+		return;
+	}
+	//建库
+	string creatDb = "expert";
+	string ctablestr;
+	mysqlUser.createDatabase(creatDb);//创建unity数据库
+	//车间表
+	ctablestr = "CREATE TABLE IF NOT EXISTS expert_knowledge (id varchar(50) NOT NULL,time DATETIME NOT NULL COMMENT '时间',faultname varchar(50) NOT NULL COMMENT '错误名',faultreason varchar(500) NOT NULL COMMENT '错误原因',faultsolve varchar(500) NOT NULL COMMENT '错误解决',PRIMARY KEY(id))ENGINE=InnoDB DEFAULT CHARSET=utf8;";
+	mysqlUser.createdbTable(ctablestr);
+	string testinsert;
 
+	testinsert = "insert into expert_knowledge (id,time,faultname,faultreason,faultsolve) values('Ink temperature sensor fault',now(),'墨水温度传感器故障','1、温度传感器没有密封好。2、焊接时将传感器焊穿','更换传感器外壳');";
+	mysqlUser.writeDataToDB(testinsert);
+
+	testinsert = "insert into expert_knowledge (id,time,faultname,faultreason,faultsolve) values('Printhead temperature sensor fault',now(),'喷头温度传感器故障','1、温度传感器没有密封好。2、焊接时将传感器焊穿','更换传感器外壳');";
+	mysqlUser.writeDataToDB(testinsert);
+
+	testinsert = "insert into expert_knowledge (id,time,faultname,faultreason,faultsolve) values('Pump speed abnormal',now(),'泵速异常','1、泵吸不上油或流量不足。2、电机故障','1、检测墨水液位，及时添加墨水。2、检测电机');";
+	mysqlUser.writeDataToDB(testinsert);
+
+	testinsert = "insert into expert_knowledge (id,time,faultname,faultreason,faultsolve) values('Pressure abnormal',now(),'压力异常','1、喷嘴堵住或供墨过滤器堵塞。2、主过滤器堵塞。3、减压阀不能正常工作。4、供墨泵单向阀有问题或供墨泵泄露。5、压力传感器故障','1、用溶剂或超声波来超洗喷嘴片。2、更换喷嘴体。3、更换主过滤器。4、更换减压阀。5、更换供墨单向阀或更换整体泵。6、更换新的压力传感器');";
+	mysqlUser.writeDataToDB(testinsert);
+
+	testinsert = "insert into expert_knowledge (id,time,faultname,faultreason,faultsolve) values('Ink Visco high',now(),'墨水粘度高','1、墨水粘度过高。2、无法添加溶剂。3、粘度计筒内壁或检测铁柱不光滑导致其下落速度不匀速','1、粘度设定值不合理，根据墨水类型，温度，断点形态来确定合理的值，进行黏度校正。2、先检查溶剂滤片是否堵塞，若堵就对其清洗或更换；再检查溶剂添加电磁阀是否不能正常工作，观察其接线"
+		"是否松动或断了，或者是其阀芯粘住生锈卡了，可对其维修；最后检查溶剂泵是否正常工作，看其单向阀是不是不出溶剂了，或其溶剂柱塞是否卡了，或其溶剂泵是否漏了，可对其维修或更换；还有可能是ICU电路板出问题了，使溶剂添加电磁阀不能正常工作，对其进行更换。3、检查检测铁柱和粘度计内壁是否光洁，若检测铁柱生锈可对其适当的打磨，但不可过量打磨，否者黏度检测就不准确；对粘度计内壁进行刷洗');";
+	mysqlUser.writeDataToDB(testinsert);
+
+	testinsert = "insert into expert_knowledge (id,time,faultname,faultreason,faultsolve) values('Ink Visco low',now(),'墨水粘度低','1、墨水粘度值设置不合理。2、墨水箱搅拌滤头堵塞。3、墨水被稀释。4、粘度计进出口、搅拌管路各接头处、主泵接头有泄露。5、粘度计检测铁柱下落不匀速','1、根据温度、断点形态来设定墨水粘度值。2、用超声波超洗墨水箱里的搅拌滤头或更换新的。3、墨水倒出，放在通风处或者用风扇吹，"
+		"使墨水中的稀释液挥发。4、 首先可能是频繁的清洗喷头，使清洗液从回收器被吸入墨水箱里或者是手动开清洗导致的，这就不要频繁的清洗喷头，若是喷头堵了，最好用超声波来超洗，不要频繁的用手动清洗、逆清洗，不然墨水就会稀了；再就检查溶剂添加电磁阀、清洗电磁阀是否泄漏或不能正常开关，若有问题就必须进行更换新的。5、 检查各处是否有漏墨，尤其是粘度计的进出口是否有漏气，必要对其进行更换。6、清洁粘度计内壁，或者更换粘度计的检测铁柱');";
+	mysqlUser.writeDataToDB(testinsert);
+
+	testinsert = "insert into expert_knowledge (id,time,faultname,faultreason,faultsolve) values('Viscometer fault',now(),'粘度计故障','1、粘度计进出口、搅拌管路各接头处、循环泵接头有漏气漏墨情况。2、 可能是搅拌滤片堵塞。3、可能循环泵有问题','1、顺序逐一检查其各处是否有漏气漏墨问题，对其有问题处进行更换。2、清洗或更换搅拌滤片。3、检查是不是循环泵柱塞卡了或其膜片漏了，对其进行维修或整体更换泵组件');";
+	mysqlUser.writeDataToDB(testinsert);
+
+	testinsert = "insert into expert_knowledge (id,time,faultname,faultreason,faultsolve) values('Recyle faul',now(),'回收故障','1、墨线位置不正确。2、压力过低。3、回收滤片堵塞或回收管路堵塞。4、回收电磁阀不能正常工作。5、回收单向阀有问题。6、回收泵膜片漏','1、调整墨线位置左右为回收器口正中间，上下为距回收器口上边缘三分之一处。2、墨压应调至40psi，此为最佳运行状态值，过低可能会影响回收效果。3、一般普通墨水很少堵回收"
+		"滤片，特殊墨水容易堵，对其进行超洗或更换，把回收滤片拆掉对机器的运行状态没什么影响；若机器一段时间没有用且最后一次还没有正常关机就可能堵回收管路，可以用注射器来打通，从回收过滤器处拆掉回收管，用注射器往里打清洗剂，则会从回收器口处流出，从回收器到回收过滤器这一段管路就打通了；之后手动打开泵、回收电磁阀，用注射器往回收器口里注射清洗剂，则会从墨水箱里的回收管流出，这就整个回收管路都通了。4、一般回收电磁阀是不容易坏的，可能"
+		"是其插线松动或阀芯卡了，对其进行拆洗。5、 单向阀可以用洗耳球来检测的，单向阀是下进上出的，用洗耳球对下进行吸气，对上进行吹气，若漏气则说明是坏的，对其维修或更换，最好是更换新的。6、更换膜片或更换整个泵体。7、关闭回收检测，但长时间会对机器造成影响');";
+	mysqlUser.writeDataToDB(testinsert);
+
+	testinsert = "insert into expert_knowledge (id,time,faultname,faultreason,faultsolve) values('Fan fault',now(),'风扇故障','1、风扇连接松动。2、风扇故障。3、电路板问题','1、拔出风扇连接线重新插入。2、更换风扇。3、联系厂家更换电路板');";
+	mysqlUser.writeDataToDB(testinsert);
+
+	testinsert = "insert into expert_knowledge (id,time,faultname,faultreason,faultsolve) values('Phase fault',now(),'相位故障','1、喷嘴驱动设置不正确。2、喷头后盖里进溶剂或受潮了。3、喷嘴微堵。4、喷码机没有接地，受到了干扰。5、喷头抗干扰小板有墨物或坏了。6、墨水黏度不正常或墨水过期。7、回收器、回收检测线及回收系统不好或不稳定。8、电源地线接地是否良好。9、PCU板或PDU板不正常','1、重新设置喷嘴驱动值，这得根据断点的形态"
+		"来设置，一次设置在2~5的增加或减少。2、打开喷头后盖，用吹风机吹干。3、用超声波超洗喷嘴片、喷嘴滤片。4、给喷码机良好的接地，并避免或排除周围的干扰。5、可以先用溶剂擦洗抗干扰小板，再用酒精擦洗，最后用吹风机吹干，若还不行就更换新的。6、调整墨水黏度致正常值或更换新墨。7、先检查回收器与回收底座之间连接是否完好，有无漏墨现象，若有就维修或更换；可以在回收底座与喷头之间添加自行车内胎，彻底清洗回收的小白圈；超洗回收过滤器或更换；"
+		"再检查回收单向阀工作是否正常，若不正常就维修或更换。8、把电源接地线良好接地。9、更换PDU板或刷改PCU板的PAU、PAU程序，若还不行更换整套的喷头喉管');";
+	mysqlUser.writeDataToDB(testinsert);
+
+	testinsert = "insert into expert_knowledge (id,time,faultname,faultreason,faultsolve) values('High voltage fault',now(),'高压故障','1、喷头过于潮湿。2、高压板与零极板有墨物或其之间的距离不合适；高压板支架及高压导线有脏墨。3、喷嘴微堵。4、高压电源的高压堡灵敏度调整不合适。5、高压误报。6、高压电源与PDU板之间的4芯控制线虚接。7、高压电源坏掉。8、PDU板或PCU板坏掉','1、清洗喷头并用吹风机吹干（方喷头的可能会是后盖里进"
+		"溶剂了，拆掉对其吹干，为了避免以后再进溶剂，可以对其密封巢里添加生胶带，增加密闭性）。2、调整高压板与零极板之间的距离，大概一个十字螺丝刀头直径的距离，把其放在它们之间有点松即可；彻底清洗高压板及支架、高压导线，还有零极板并且吹干。3、用超声波超洗喷嘴片及喷头滤片。4、调整高压电源的高压堡灵敏度致合适位置，调高压堡时要注意其箭头的标示，不要调反了，而且要轻微的调，调的力量过大或调的量很大，会导致高压电源的报废。5、首先可能是"
+		"ICU板的芯片造成的，是其程序的问题，更换即可；或者把墨水箱上的两个黑线连接在一起试试。6、重新接好4芯控制线接头。7、先检测一下高压电源是否正常，可以拔掉高压电源的高压输出导线，然后开墨线、高压，让喷码机就绪，若还报高压故障说明高压电源坏了，更换高压电源。8、更换PDU板或PCU板');";
+	mysqlUser.writeDataToDB(testinsert);
+
+	testinsert = "insert into expert_knowledge (id,time,faultname,faultreason,faultsolve) values('Add solvent',now(),'添加溶剂','1、溶剂过少。2、溶剂液位传感器故障','1、添加溶剂。2、进行溶剂液位校准');";
+	mysqlUser.writeDataToDB(testinsert);
+
+	testinsert = "insert into expert_knowledge (id,time,faultname,faultreason,faultsolve) values('Solvent empty',now(),'溶剂空','1、溶剂已用尽。2、溶剂液位传感器故障','1、添加溶剂。2、进行溶剂液位校准');";
+	mysqlUser.writeDataToDB(testinsert);
+
+	testinsert = "insert into expert_knowledge (id,time,faultname,faultreason,faultsolve) values('Solvent overfull',now(),'溶剂过满','1、溶剂过多。2、溶剂液位传感器故障','1、倒出溶剂。2、进行溶剂液位校准');";
+	mysqlUser.writeDataToDB(testinsert);
+
+	testinsert = "insert into expert_knowledge (id,time,faultname,faultreason,faultsolve) values('Add ink',now(),'添加墨水','1、墨水过少。2、墨水液位传感器故障','1、添加墨水。2、进行墨水液位校准');";
+	mysqlUser.writeDataToDB(testinsert);
+
+	testinsert = "insert into expert_knowledge (id,time,faultname,faultreason,faultsolve) values('Ink empty',now(),'墨水空','1、墨水已用尽。2、墨水液位传感器故障','1、添加墨水。2、进行墨水液位校准');";
+	mysqlUser.writeDataToDB(testinsert);
+
+	testinsert = "insert into expert_knowledge (id,time,faultname,faultreason,faultsolve) values('Ink overfull',now(),'墨水过满','1、墨水过多。2、墨水液位传感器故障','1、倒出墨水。2、进行墨水液位校准');";
+	mysqlUser.writeDataToDB(testinsert);
+
+	testinsert = "insert into expert_knowledge (id,time,faultname,faultreason,faultsolve) values('Much too product',now(),'电眼过快','1、喷印产品速度过快。2、电眼故障','1、降低传送带速度。2、更换电眼');";
+	mysqlUser.writeDataToDB(testinsert);
+}
 void CclientO2MDlg::initMysql()
 {
 	string serverName = "localhost";
@@ -450,18 +534,24 @@ void CclientO2MDlg::initMysql()
 	string dbName = "mysql";
 
 	mysqlUser.connectMySQL(const_cast<char *>(serverName.c_str()), const_cast<char *>(userName.c_str()), const_cast<char *>(userKey.c_str()), const_cast<char *>(dbName.c_str()), 3306);
+	initExpert();//初始化专家知识库
 	string creatDb = "unity";
 	string ctablestr;
 	mysqlUser.createDatabase(creatDb);//创建unity数据库
 	//车间表
-	ctablestr = "CREATE TABLE IF NOT EXISTS workshop (wid INT NOT NULL AUTO_INCREMENT,wtime DATETIME NOT NULL COMMENT '时间',wname varchar(20) DEFAULT NULL COMMENT '车间名',wposition varchar(50) DEFAULT NULL COMMENT '位置',PRIMARY KEY(wid))ENGINE=InnoDB DEFAULT CHARSET=utf8;";
+
+		//项目表
+	ctablestr = "CREATE TABLE IF NOT EXISTS project (pro_id INT NOT NULL AUTO_INCREMENT,pro_time DATETIME NOT NULL,pro_name varchar(50) NOT NULL COMMENT '项目名',pro_explain varchar(200) NOT NULL COMMENT '项目描述',pro_file_name varchar(50) not null,PRIMARY KEY(pro_id))ENGINE=InnoDB DEFAULT CHARSET=utf8;";
+	mysqlUser.createdbTable(ctablestr);
+	//车间
+	ctablestr = "CREATE TABLE IF NOT EXISTS workshop (wid INT NOT NULL AUTO_INCREMENT,wtime DATETIME NOT NULL COMMENT '时间',wname varchar(20) NOT NULL COMMENT '车间名',wposition varchar(50) NOT NULL COMMENT '位置',PRIMARY KEY(wid))ENGINE=InnoDB DEFAULT CHARSET=utf8;";
 	mysqlUser.createdbTable(ctablestr);
 	string testinsert;
 
 	//testinsert = "insert into workshop (wtime,wname,wposition) values(now(),'testworkshop','testPos');";
 	//mysqlUser.writeDataToDB(testinsert);
 	//生产线
-	ctablestr = "CREATE TABLE IF NOT EXISTS productionline (pid INT NOT NULL AUTO_INCREMENT,ptime DATETIME NOT NULL,pname varchar(20) DEFAULT NULL,pposition varchar(50) DEFAULT NULL,workshop_id INT NOT NULL,PRIMARY KEY(pid),FOREIGN KEY(workshop_id) REFERENCES workshop(wid) on delete cascade on update cascade)ENGINE=InnoDB DEFAULT CHARSET=utf8;";
+	ctablestr = "CREATE TABLE IF NOT EXISTS productionline (pid INT NOT NULL AUTO_INCREMENT,ptime DATETIME NOT NULL,pname varchar(20) NOT NULL,pposition varchar(50) NOT NULL,workshop_id INT NOT NULL,PRIMARY KEY(pid),FOREIGN KEY(workshop_id) REFERENCES workshop(wid) on delete cascade on update cascade)ENGINE=InnoDB DEFAULT CHARSET=utf8;";
 	mysqlUser.createdbTable(ctablestr);
 
 	//testinsert = "insert into productionline (ptime,pname,pposition,workshop_id) values(now(),'testline','testPos',1);";
@@ -470,14 +560,15 @@ void CclientO2MDlg::initMysql()
 	//cout << "对于设备表：" << endl;
 	//cout << "插入数据前，先用inet_aton把ip地址转为整型，可以节省空间。例：( 2, 'babala', inet_aton( '127.0.0.1' ) )" << endl;
 	//cout << "显示数据时，使用inet_ntoa把整型的ip地址转为电地址显示即可。为社么这样存 ? ，性能上的提示比直接存储字符串的IP要高出很多。读取select inet_ntoa(eip) as ip from `equipment`" << endl << endl;
-	ctablestr = "CREATE TABLE IF NOT EXISTS equipment (eid INT NOT NULL AUTO_INCREMENT,etime DATETIME NOT NULL,etype varchar(20) DEFAULT NULL COMMENT '设备类型',ename varchar(20) DEFAULT NULL COMMENT '设备号',eposition varchar(50) DEFAULT NULL,eip bigint(20) DEFAULT NULL,eport INT DEFAULT NULL,productionline_id INT NOT NULL,PRIMARY KEY(eid),FOREIGN KEY(productionline_id) REFERENCES productionline(pid) on delete cascade on update cascade)ENGINE=InnoDB DEFAULT CHARSET=utf8;";
+	ctablestr = "CREATE TABLE IF NOT EXISTS equipment (eid INT NOT NULL AUTO_INCREMENT,etime DATETIME NOT NULL,etype varchar(20) NOT NULL COMMENT '设备类型',ename varchar(20) NOT NULL COMMENT '设备号',eposition varchar(50) NOT NULL,eip bigint(20) NOT NULL,eport INT NOT NULL,elabname varchar(30) NOT NULL,productionline_id INT NOT NULL,"
+		"project_id INT NOT NULL,PRIMARY KEY(eid),FOREIGN KEY(productionline_id) REFERENCES productionline(pid) on delete cascade on update cascade)ENGINE=InnoDB DEFAULT CHARSET=utf8;";
 	mysqlUser.createdbTable(ctablestr);
 
 	//testinsert = "insert into equipment (etime,etype,ename,eposition,eip,eport,productionline_id) values(now(),'codeprint','testcodeprint','testPos',inet_aton('127.0.0.1'),8899,1);";
 	//mysqlUser.writeDataToDB(testinsert);
 
 	//设备更改表
-	ctablestr = "CREATE TABLE IF NOT EXISTS equipchange (id INT NOT NULL AUTO_INCREMENT,eid INT NOT NULL,ectype INT NOT NULL,ectime DATETIME NOT NULL,PRIMARY KEY(id))ENGINE=InnoDB DEFAULT CHARSET=utf8;";
+	ctablestr = "CREATE TABLE IF NOT EXISTS equipchange (ecid INT NOT NULL AUTO_INCREMENT,eid INT NOT NULL,ectype INT NOT NULL,ectime DATETIME NOT NULL,PRIMARY KEY(ecid))ENGINE=InnoDB DEFAULT CHARSET=utf8;";
 	mysqlUser.createdbTable(ctablestr);
 
 	testinsert = "drop trigger if exists equip_up;";
@@ -501,48 +592,122 @@ void CclientO2MDlg::initMysql()
 	mysqlUser.writeDataToDB(testinsert);
 
 	//临时数据表
-	ctablestr = "CREATE TABLE IF NOT EXISTS tempdata (tid INT NOT NULL AUTO_INCREMENT,tvalue INT NOT NULL,tcnl INT NOT NULL COMMENT '标识',equipment_id INT NOT NULL,PRIMARY KEY(did),FOREIGN KEY(equipment_id) REFERENCES equipment(tid) on delete cascade on update cascade)ENGINE=InnoDB DEFAULT CHARSET=utf8;";
+	ctablestr = "CREATE TABLE IF NOT EXISTS tempdata (tid INT NOT NULL AUTO_INCREMENT,tvalue INT NOT NULL,tcnl INT NOT NULL COMMENT '标识',equipment_id INT NOT NULL,PRIMARY KEY(tid),FOREIGN KEY(equipment_id) REFERENCES equipment(eid) on delete cascade on update cascade)ENGINE=InnoDB DEFAULT CHARSET=utf8;";
 	mysqlUser.createdbTable(ctablestr);
 	testinsert = "CREATE INDEX eid_dcnl_dtime_Index ON `tempdata`(`equipment_id`, `tcnl`);";//创建组合索引
 	mysqlUser.writeDataToDB(testinsert);
 	//打印数据表
 	//cout << "打印数据表的cprint为blob类型，保存字节" << endl << endl;
-	ctablestr = "CREATE TABLE IF NOT EXISTS code (cid INT NOT NULL AUTO_INCREMENT,ctime DATETIME NOT NULL,cprint BLOB(1000) DEFAULT NULL COMMENT '字节数据',equipment_id INT NOT NULL,PRIMARY KEY(cid),FOREIGN KEY(equipment_id) REFERENCES equipment(eid) on delete cascade on update cascade)ENGINE=InnoDB DEFAULT CHARSET=utf8;";
+	ctablestr = "CREATE TABLE IF NOT EXISTS code (cid INT NOT NULL AUTO_INCREMENT,ctime DATETIME NOT NULL,cprint BLOB(1000) NOT NULL COMMENT '字节数据',equipment_id INT NOT NULL,PRIMARY KEY(cid),FOREIGN KEY(equipment_id) REFERENCES equipment(eid) on delete cascade on update cascade)ENGINE=InnoDB DEFAULT CHARSET=utf8;";
 	mysqlUser.createdbTable(ctablestr);
 	//testinsert = "insert into code (ctime,cprint,equipment_id) values(now(),x'018006111C070600FFFF1F244C241F00FFFF',1);";
 	//mysqlUser.writeDataToDB(testinsert);
 	testinsert = "CREATE INDEX eid_dtime_Index ON `code`(`equipment_id`, `ctime`);";//创建组合索引
 	mysqlUser.writeDataToDB(testinsert);
 	//在线监测，图片保存路径
-	ctablestr = "CREATE TABLE IF NOT EXISTS monitor (mid INT NOT NULL AUTO_INCREMENT,mtime DATETIME NOT NULL,mroute varchar(100) DEFAULT NULL COMMENT '图片路径',equipment_id INT NOT NULL,PRIMARY KEY(mid),FOREIGN KEY(equipment_id) REFERENCES equipment(eid) on delete cascade on update cascade)ENGINE=InnoDB DEFAULT CHARSET=utf8;";
+	ctablestr = "CREATE TABLE IF NOT EXISTS monitor (mid INT NOT NULL AUTO_INCREMENT,mtime DATETIME NOT NULL,mroute varchar(100) NOT NULL COMMENT '图片路径',equipment_id INT NOT NULL,PRIMARY KEY(mid),FOREIGN KEY(equipment_id) REFERENCES equipment(eid) on delete cascade on update cascade)ENGINE=InnoDB DEFAULT CHARSET=utf8;";
 	mysqlUser.createdbTable(ctablestr);
 	//testinsert = "insert into monitor (mtime,mroute,equipment_id) values(now(),'E:\gitTEST\CodePrinter\1.jpg',1);";
 	//mysqlUser.writeDataToDB(testinsert);
 	//错误信息
-	ctablestr = "CREATE TABLE IF NOT EXISTS fault (fid INT NOT NULL AUTO_INCREMENT,ftime DATETIME NOT NULL,fvalue varchar(100) DEFAULT NULL COMMENT '错误信息',fcnl INT NOT NULL COMMENT '标识',equipment_id INT NOT NULL,PRIMARY KEY(fid),FOREIGN KEY(equipment_id) REFERENCES equipment(eid) on delete cascade on update cascade)ENGINE=InnoDB DEFAULT CHARSET=utf8;";
+	ctablestr = "CREATE TABLE IF NOT EXISTS fault (fid INT NOT NULL AUTO_INCREMENT,ftime DATETIME NOT NULL,fvalue varchar(100) NOT NULL COMMENT '错误信息',fcnl INT NOT NULL COMMENT '标识',equipment_id INT NOT NULL,PRIMARY KEY(fid),FOREIGN KEY(equipment_id) REFERENCES equipment(eid) on delete cascade on update cascade)ENGINE=InnoDB DEFAULT CHARSET=utf8;";
 	mysqlUser.createdbTable(ctablestr);
 /*	testinsert = "insert into fault (ftime,fvalue,fcnl,equipment_id) values(now(),'ttt',1,1);";
 	mysqlUser.writeDataToDB(testinsert)*/;
 	//权限表
-	ctablestr = "CREATE TABLE IF NOT EXISTS limits (lid INT NOT NULL AUTO_INCREMENT,lname varchar(20) DEFAULT NULL COMMENT '权限名',lexplain varchar(100) DEFAULT NULL COMMENT '解释',PRIMARY KEY(lid))ENGINE=InnoDB DEFAULT CHARSET=utf8;";
+	ctablestr = "CREATE TABLE IF NOT EXISTS limits (lid INT NOT NULL AUTO_INCREMENT,lname varchar(50) NOT NULL COMMENT '权限名',lexplain varchar(200) NOT NULL COMMENT '解释',PRIMARY KEY(lid))ENGINE=InnoDB DEFAULT CHARSET=utf8;";
 	mysqlUser.createdbTable(ctablestr);
+	testinsert = "insert limits(lid,lname,lexplain) values (1,'Admin','管理员权限，可执行系统所有操作'),(2,'Control','控制权限，可控制及查看设备，但不可管理用户及项目'),(3,'Check','仅可查看系统状态')";//创建组合索引
+	mysqlUser.writeDataToDB(testinsert);
 	//testinsert = "insert into limits (lname,lexplain) values('tttt','ttttt');";
 	//mysqlUser.writeDataToDB(testinsert);
 	//用户表
-	ctablestr = "CREATE TABLE IF NOT EXISTS user (uid INT NOT NULL AUTO_INCREMENT,utime DATETIME NOT NULL,uname varchar(20) DEFAULT NULL,ukey varchar(20) DEFAULT NULL,limit_id INT NOT NULL,PRIMARY KEY(uid),FOREIGN KEY(limit_id) REFERENCES limits(lid) on delete cascade on update cascade)ENGINE=InnoDB DEFAULT CHARSET=utf8;";
+	ctablestr = "CREATE TABLE IF NOT EXISTS user (uid INT NOT NULL AUTO_INCREMENT,utime DATETIME NOT NULL,name varchar(50) NOT NULL,class varchar(50) NOT NULL,phone varchar(50) NOT NULL,email varchar(50) NOT NULL,password varchar(50) NOT NULL,limit_id INT NOT NULL,PRIMARY KEY(uid),FOREIGN KEY(limit_id) REFERENCES limits(lid) on delete cascade on update cascade)ENGINE=InnoDB DEFAULT CHARSET=utf8;";
 	mysqlUser.createdbTable(ctablestr);
 	//testinsert = "insert into user (utime,uname,ukey,limit_id) values(now(),'testuser','testuser',1);";
 	//mysqlUser.writeDataToDB(testinsert);
-	//用户权限使用表
-	ctablestr = "CREATE TABLE IF NOT EXISTS abuse (aid INT NOT NULL AUTO_INCREMENT,user_id INT NOT NULL,equipment_id INT NOT NULL,PRIMARY KEY(aid),FOREIGN KEY(user_id) REFERENCES user(uid) on delete cascade on update cascade,FOREIGN KEY(equipment_id) REFERENCES equipment(eid) on delete cascade on update cascade)ENGINE=InnoDB DEFAULT CHARSET=utf8;";
-	mysqlUser.createdbTable(ctablestr);
+
 	//testinsert = "insert into abuse (user_id,equipment_id) values(1,1);";
 	//mysqlUser.writeDataToDB(testinsert);
 	//操作表
-	ctablestr = "CREATE TABLE IF NOT EXISTS operation (oid INT NOT NULL AUTO_INCREMENT,otime DATETIME NOT NULL,order varchar(100) NOT NULL COMMENT '操作指令',user_id INT NOT NULL,equipment_id INT NOT NULL,PRIMARY KEY(oid),FOREIGN KEY(user_id) REFERENCES user(uid) on delete cascade on update cascade,FOREIGN KEY(equipment_id) REFERENCES equipment(eid) on delete cascade on update cascade)ENGINE=InnoDB DEFAULT CHARSET=utf8;";
+	ctablestr = "CREATE TABLE IF NOT EXISTS operation (oid INT NOT NULL AUTO_INCREMENT,otime DATETIME NOT NULL,oorder varchar(100) NOT NULL COMMENT '操作指令',user_id INT NOT NULL,project_id INT NOT NULL,PRIMARY KEY(oid),FOREIGN KEY(user_id) REFERENCES user(uid) on delete cascade on update cascade,FOREIGN KEY(project_id) REFERENCES project(pro_id) on delete cascade on update cascade)ENGINE=InnoDB DEFAULT CHARSET=utf8;";
 	mysqlUser.createdbTable(ctablestr);
 
-	//读取设备信息
+	//ctablestr = "CREATE TABLE IF NOT EXISTS quality (qid varchar(20) NOT NULL,qvalue varchar(1000) NOT NULL COMMENT 'unity属性',PRIMARY KEY(qid),FOREIGN KEY(qid) REFERENCES user(uid) on delete cascade on update cascade,FOREIGN KEY(equipment_id) REFERENCES equipment(eid) on delete cascade on update cascade)ENGINE=InnoDB DEFAULT CHARSET=utf8;";
+	//mysqlUser.createdbTable(ctablestr);
+
+
+	//虚拟设备表
+	ctablestr = "CREATE TABLE IF NOT EXISTS virtual_device (vd_id INT NOT NULL,vd_time DATETIME NOT NULL,vd_name varchar(50) NOT NULL COMMENT '虚拟设备名',vd_property varchar(1000) NOT NULL COMMENT '属性列表',PRIMARY KEY(vd_id))ENGINE=InnoDB DEFAULT CHARSET=utf8;";
+	mysqlUser.createdbTable(ctablestr);
+	//项目设备
+	ctablestr = "CREATE TABLE IF NOT EXISTS pro_equip (pe_id INT NOT NULL AUTO_INCREMENT,pe_time DATETIME NOT NULL,equipment_id INT NOT NULL COMMENT '物理设备id',vir_dev_id INT NOT NULL COMMENT '虚拟设备id',project_id INT NOT NULL COMMENT '项目id',PRIMARY KEY(pe_id),FOREIGN KEY(equipment_id) REFERENCES equipment(eid) on delete cascade on update cascade,"
+		"FOREIGN KEY(vir_dev_id) REFERENCES virtual_device(vd_id) on delete cascade on update cascade,FOREIGN KEY(project_id) REFERENCES project(pro_id) on delete cascade on update cascade)ENGINE=InnoDB DEFAULT CHARSET=utf8;";
+	mysqlUser.createdbTable(ctablestr);
+	//项目清单
+	ctablestr = "CREATE TABLE IF NOT EXISTS project_list (pl_id INT NOT NULL AUTO_INCREMENT,user_id INT NOT NULL,project_id INT NOT NULL,PRIMARY KEY(pl_id),FOREIGN KEY(user_id) REFERENCES user(uid) on delete cascade on update cascade,FOREIGN KEY(project_id) REFERENCES project(pro_id) on delete cascade on update cascade)ENGINE=InnoDB DEFAULT CHARSET=utf8;";
+	mysqlUser.createdbTable(ctablestr);
+
+	//设备unity属性表
+	ctablestr = "CREATE TABLE IF NOT EXISTS unity_equip (ue_id varchar(20) NOT NULL,pe_time DATETIME NOT NULL,ue_property varchar(1000) NOT NULL COMMENT '属性列表',PRIMARY KEY(ue_id))ENGINE=InnoDB DEFAULT CHARSET=utf8;";
+	mysqlUser.createdbTable(ctablestr);
+
+	testinsert = "insert into unity_equip (ue_id,pe_time,ue_property) values('CodePrint',now(),'Pressure|Pump speed|Ink temperature|Nozzle temperature|Ink level|Solvent level|Target viscosity|Actual viscosity|High voltage|Modulation voltage|Phase|Ink time|Encoder frequency|Number of columns|Code byte|"
+		"Pump speed or pressure mode|Switch pump|Switch nozzle|Ink supply valve|Vent valve|Cleaning valve|Solvent valve|Viscosity valve|Flush valve|Close recycling detection|Close ink line|Add solvent|Test viscosity|Flushing nozzle|The reverse suction nozzle|Ink line calibration|Ink road cycle|High voltage switch|Product testing|Product spray printing|Counter|Switch printing');";
+	mysqlUser.writeDataToDB(testinsert);
+	//电眼
+	testinsert = "insert into unity_equip (ue_id,pe_time,ue_property) values('OptoelectronicSwitch',now(),'Eye level');";
+	mysqlUser.writeDataToDB(testinsert);
+	//删除30天前数据
+	string deleteM = "delete from data where dtime < date_add(curdate(), INTERVAL - 1 month);";
+	mysqlUser.createdbTable(deleteM);
+	//删除30天前数据
+	deleteM = "delete from code where ctime < date_add(curdate(), INTERVAL - 1 month);";
+	mysqlUser.createdbTable(deleteM);
+
+	//创建储存过程
+	//string sqlStr;
+	//sqlStr = "source E:\\gitTEST\\server\\clientO2M\\x64\\Debug\\test.sql;";
+	//mysqlUser.writeDataToDB(sqlStr);
+	//string saveFun;
+	//saveFun = "drop procedure if exists 压力;drop procedure if exists 泵速;drop procedure if exists 墨水温度;drop procedure if exists 喷头温度;drop procedure if exists 墨水液位;";//delimiter $$ create procedure test (in eid int) begin select dvalue from data where did in (select max(did) from data where equipment_id=eid and dcnl=5); end$$ delimiter ;";
+	//saveFun += "drop procedure if exists 溶剂液位;drop procedure if exists 目标粘度;drop procedure if exists 实际粘度;drop procedure if exists 高压;drop procedure if exists 调制电压;";
+	//saveFun += "drop procedure if exists 相位;drop procedure if exists 墨水时间;drop procedure if exists 编码器频率;drop procedure if exists 列点数;";
+	//saveFun = "drop procedure if exists 压力;";
+	//mysqlUser.writeDataToDB(saveFun);
+	//saveFun = "delimiter  $$";
+	//mysqlUser.writeDataToDB(saveFun);
+	//saveFun = "create procedure 压力 (in eid int) begin select dvalue from data where did in (select max(did) from data where equipment_id=eid and dcnl=1); end$$";
+	//mysqlUser.writeDataToDB(saveFun);
+	//saveFun = "create procedure 泵速 (in eid int) begin select dvalue from data where did in (select max(did) from data where equipment_id=eid and dcnl=2); end$$";
+	//mysqlUser.writeDataToDB(saveFun);
+	//saveFun = "create procedure 墨水温度 (in eid int) begin select dvalue from data where did in (select max(did) from data where equipment_id=eid and dcnl=3); end$$";
+	//mysqlUser.writeDataToDB(saveFun);
+	//saveFun = "create procedure 喷头温度 (in eid int) begin select dvalue from data where did in (select max(did) from data where equipment_id=eid and dcnl=4); end$$";
+	//mysqlUser.writeDataToDB(saveFun);
+	//saveFun = "create procedure 墨水液位 (in eid int) begin select dvalue from data where did in (select max(did) from data where equipment_id=eid and dcnl=5); end$$";
+	//mysqlUser.writeDataToDB(saveFun);
+	//saveFun = "create procedure 溶剂液位 (in eid int) begin select dvalue from data where did in (select max(did) from data where equipment_id=eid and dcnl=6); end$$";
+	//mysqlUser.writeDataToDB(saveFun);
+	//saveFun = "create procedure 目标粘度 (in eid int) begin select dvalue from data where did in (select max(did) from data where equipment_id=eid and dcnl=7); end$$";
+	//mysqlUser.writeDataToDB(saveFun);
+	//saveFun = "create procedure 实际粘度 (in eid int) begin select dvalue from data where did in (select max(did) from data where equipment_id=eid and dcnl=8); end$$";
+	//mysqlUser.writeDataToDB(saveFun);
+	//saveFun = "create procedure 高压 (in eid int) begin select dvalue from data where did in (select max(did) from data where equipment_id=eid and dcnl=9); end$$";
+	//mysqlUser.writeDataToDB(saveFun);
+	//saveFun = "create procedure 调制电压 (in eid int) begin select dvalue from data where did in (select max(did) from data where equipment_id=eid and dcnl=10); end$$";
+	//mysqlUser.writeDataToDB(saveFun);
+	//saveFun = "create procedure 相位 (in eid int) begin select dvalue from data where did in (select max(did) from data where equipment_id=eid and dcnl=11); end$$";
+	//mysqlUser.writeDataToDB(saveFun);
+	//saveFun = "create procedure 墨水时间 (in eid int) begin select dvalue from data where did in (select max(did) from data where equipment_id=eid and dcnl=12); end$$";
+	//mysqlUser.writeDataToDB(saveFun);
+	//saveFun = "create procedure 编码器频率 (in eid int) begin select dvalue from data where did in (select max(did) from data where equipment_id=eid and dcnl=13); end$$";
+	//mysqlUser.writeDataToDB(saveFun);
+	//saveFun = "create procedure 列点数 (in eid int) begin select dvalue from data where did in (select max(did) from data where equipment_id=eid and dcnl=14); end$$";
+	//mysqlUser.writeDataToDB(saveFun);
+	//saveFun = "delimiter ;";
+	//mysqlUser.writeDataToDB(saveFun);
+//读取设备信息
 	ctablestr = "select eid,etype,inet_ntoa(eip) as ip,eport from `equipment`;";
 	vector<vector<string>> tempVec;
 	if (mysqlUser.getDatafromDB(ctablestr, tempVec))
@@ -619,22 +784,22 @@ bool CclientO2MDlg::StartEquip(PEQUIPMENT tempEquip)
 	ioctlsocket(tempEquip->m_sHost, FIONBIO, (u_long FAR*)&iMode);
 
 
-	// 定义服务端  
-	SOCKADDR_IN addrSrv;
-	addrSrv.sin_addr.S_un.S_addr = inet_addr("127.0.0.1");
-	addrSrv.sin_family = AF_INET;
-	addrSrv.sin_port = htons(8888);
+	//// 定义服务端  
+	////SOCKADDR_IN addrSrv;
+	////addrSrv.sin_addr.S_un.S_addr = inet_addr("127.0.0.1");
+	////addrSrv.sin_family = AF_INET;
+	////addrSrv.sin_port = htons(8888);
 
 
-	// 超时时间  
+	//// 超时时间  
 	struct timeval tm;
 	tm.tv_sec = 5;
 	tm.tv_usec = 0;
 	int ret = -1;
 
 
-	// 尝试去连接服务端  
-	if (-1 != connect(tempEquip->m_sHost, (SOCKADDR*)&addrSrv, sizeof(SOCKADDR)))
+	//// 尝试去连接服务端  
+	if (-1 != connect(tempEquip->m_sHost, (SOCKADDR*)&servAddr, sizeof(SOCKADDR)))
 	{
 		ret = 1; // 连接成功  
 	}
@@ -667,7 +832,7 @@ bool CclientO2MDlg::StartEquip(PEQUIPMENT tempEquip)
 	}
 
 
-	// 设回为阻塞socket  
+	//// 设回为阻塞socket  
 	iMode = 0;
 	ioctlsocket(tempEquip->m_sHost, FIONBIO, (u_long FAR*)&iMode); //设置为阻塞模式 
 	if (SOCKET_ERROR == ret)
@@ -800,20 +965,85 @@ DWORD WINAPI CclientO2MDlg::FindThread(void *pParam)
 				pClientDlg->changeId = atoi((*iter1)[0].c_str());
 				ctablestr = "select eid,etype,inet_ntoa(eip) as ip,eport from `equipment` where eid = "+(*iter1)[1]+";";
 				vector<vector<string>> oneVec;
-
+				pClientDlg->mysqlUser.getDatafromDB(ctablestr, oneVec);
 				switch (atoi((*iter1)[2].c_str()))
 				{
 				case 1://更新
 				{
 					auto upIter = theApp.m_equipMap.find(atoi((*iter1)[1].c_str()));
+					auto oneIter = oneVec.begin();
 					if (upIter != theApp.m_equipMap.end())
 					{
-						upIter->second->m_bRunning = FALSE;
-						if (pClientDlg->CloseEquip(upIter->second))
+						if (upIter->second->m_ip!= (*oneIter)[2]|| upIter->second->m_sServPort!= atoi(((*oneIter)[3]).c_str()))
 						{
-							delete upIter->second;
-							upIter->second = NULL;
-							theApp.m_equipMap.erase(upIter);
+							upIter->second->m_bRunning = FALSE;
+							if (pClientDlg->CloseEquip(upIter->second))
+							{
+								delete upIter->second;
+								upIter->second = NULL;
+								theApp.m_equipMap.erase(upIter);
+							}
+							if ((*oneIter)[1] == "CodePrint")
+							{
+								PEQUIPMENT tempEquip = new EQUIPMENT;						//不知道为啥用指针才行
+								tempEquip->m_id = atoi(((*oneIter)[0]).c_str());
+								tempEquip->m_ip = (*oneIter)[2];
+								tempEquip->m_sServPort = atoi(((*oneIter)[3]).c_str());
+								tempEquip->m_bRunning = FALSE;
+								tempEquip->m_pLookupSocket = NULL;
+								tempEquip->m_nEventTotal = 0;
+								//pClientDlg->StartEquip(tempEquip);
+								//CString fuckstr = _T("fuck");
+								//tempEquip->m_pLookupSocket->Lookup(fuckstr);
+								//theApp.m_equipMap.insert(make_pair(tempEquip->m_id, tempEquip));
+								if (pClientDlg->StartEquip(tempEquip))
+								{
+									CString fuckstr = _T("fuck");
+									tempEquip->m_pLookupSocket->Lookup(fuckstr);
+									theApp.m_equipMap.insert(make_pair(tempEquip->m_id, tempEquip));
+								}
+								else
+								{
+									theApp.m_deleteVec.push_back(tempEquip);
+								}
+							}
+						}
+					}
+					else
+					{
+						if ((*oneIter)[1] == "CodePrint")
+						{
+							PEQUIPMENT tempEquip = new EQUIPMENT;						//不知道为啥用指针才行
+							tempEquip->m_id = atoi(((*oneIter)[0]).c_str());
+							tempEquip->m_ip = (*oneIter)[2];
+							tempEquip->m_sServPort = atoi(((*oneIter)[3]).c_str());
+							tempEquip->m_bRunning = FALSE;
+							tempEquip->m_pLookupSocket = NULL;
+							tempEquip->m_nEventTotal = 0;
+							//pClientDlg->StartEquip(tempEquip);
+							//CString fuckstr = _T("fuck");
+							//tempEquip->m_pLookupSocket->Lookup(fuckstr);
+							//theApp.m_equipMap.insert(make_pair(tempEquip->m_id, tempEquip));
+							if (pClientDlg->StartEquip(tempEquip))
+							{
+								CString fuckstr = _T("fuck");
+								tempEquip->m_pLookupSocket->Lookup(fuckstr);
+								theApp.m_equipMap.insert(make_pair(tempEquip->m_id, tempEquip));
+								for (auto detIter = theApp.m_deleteVec.begin(); detIter != theApp.m_deleteVec.end(); detIter++)
+								{
+									if ((*detIter)->m_id == atoi((*iter1)[2].c_str()))
+									{
+										delete (*detIter);
+										(*detIter) = NULL;
+										theApp.m_deleteVec.erase(detIter);
+										break;
+									}
+								}
+							}
+							else
+							{
+								theApp.m_deleteVec.push_back(tempEquip);
+							}
 						}
 					}
 				}
@@ -822,7 +1052,7 @@ DWORD WINAPI CclientO2MDlg::FindThread(void *pParam)
 					auto oneIter = oneVec.begin();
 					if (oneIter == oneVec.end())
 					{
-						continue;
+						break;
 					}
 					if ((*oneIter)[1] == "CodePrint")
 					{
@@ -849,16 +1079,6 @@ DWORD WINAPI CclientO2MDlg::FindThread(void *pParam)
 						}
 					}
 
-					for (auto detIter= theApp.m_deleteVec.begin();detIter!=theApp.m_deleteVec.end();detIter++)
-					{
-						if ((*detIter)->m_id== atoi((*iter1)[2].c_str()))
-						{
-							delete (*detIter);
-							(*detIter) = NULL;
-							theApp.m_deleteVec.erase(detIter);
-							break;
-						}
-					}
 					break;
 				}
 				case 3://删除

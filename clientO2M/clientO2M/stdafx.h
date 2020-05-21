@@ -60,7 +60,7 @@
 using namespace std;
 #include "winsock2.h"
 #pragma comment(lib, "ws2_32.lib")
-#define		SERVERPORT			8899						//服务器端口
+#define		SERVERPORT			7788					//服务器端口
 #define		MAX_SIZE_BUF		1024						//数据缓冲区长度
 #define		THREAD_SLEEP_TIME	100							//线程睡眠时间
 #define		MAX_WAIT_EVENTS		WSA_MAXIMUM_WAIT_EVENTS		//最多等待的事件对象数量
@@ -75,6 +75,9 @@ using namespace std;
 #define		COUNTER_CE				5					//计数器
 #define		LAB_NAME					6					//lab名
 #define		OTHER_CE					10					//其他
+
+
+#define     SAVETIME					60					//数据一分钟存一次
 typedef struct _packethdr
 {
 	u_short	type;	//类型

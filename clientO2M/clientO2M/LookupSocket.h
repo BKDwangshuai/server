@@ -72,6 +72,7 @@ public:
 	//CString			m_strMeaning;				//单词含义
 	PACKETHDR		m_hdrRecv;					//接收数据包头
 	int eid;
+	string lab_name;
 	/////////////////////////////
 public:
 	bool staSysRea, staSysBus, staBumMod, staBum, staHarFin, staCleFauFin;
@@ -80,6 +81,7 @@ public:
 	bool staInkTemSenFau, staPriHeaTemFau, staBumSpeOveFau, staPreOveFau, staVisAbnFau, staVisSenFau, staInkFloFau, staPriHeaCle;
 	bool staFanFau, staChaFau, staPhaFau;
 	bool staHigVolFau;
+	bool isHigh;
 	string staSolLevFau, staInkLevFau, staRFID;
 	bool staPrnting, staHigVolSwi, staActProSen, staProSenFas, staAutModFau, staValFau;
 	bool staPrinted, staRemPrinSwi, staBufFul, staBufRea, staEncDir, staLinFas, staPriHeaHot, staPriHeaHotFau, staSetTimeEna;
@@ -91,6 +93,13 @@ public:
 	bool staFanFauLas, staChaFauLas, staPhaFauLas, staHigVolFauLas;
 	bool staProSenFasLas, staAutModFauLas, staValFauLas, staLinFasLas, staPriHeaHotFauLas;
 	bool staInkTemSenFauLas, staPriHeaTemFauLas, staBumSpeOveFauLas, staPreOveFauLas, staVisAbnFauLas, staVisSenFauLas, staInkFloFauLas;
+	//比较用
+	int m_time;
+	int staPressure1, staBumSpe1, staHigVol1, staEncFre1;
+	BYTE staPriHeaTem1, staActVis1, staTarVis1, staInkLev1, staSolLev1, staPhase1;
+	int staInkTem1;
+	int staProCou1, staPriCou1, staInkLifeTime1;
+	BYTE staPixDotNee1, staAutModVol1;
 };
 
 #endif // !defined(AFX_LOOKUPSOCKET_H__EE6B100A_876F_4784_B839_05E139095BA1__INCLUDED_)

@@ -54,7 +54,7 @@ public:
 
 	//CEdit m_editTest;
 	void initMysql();
-
+	void initExpert();
 	//wstring Utf8ToUnicode(const string& str);
 	HANDLE			m_hFindThread;					//工作线程句柄
 	static	DWORD WINAPI	FindThread(void *pParam);	//查看各设备工作状态线程 

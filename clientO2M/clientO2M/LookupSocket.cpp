@@ -45,6 +45,12 @@ CLookupSocket::CLookupSocket( SOCKET s , WSAEVENT hEventOut, WSAEVENT hEventIn,i
 	DWORD dwThreadId;
 	PTHECLIENT pParam = new THECLIENT;
 	//pParam->hServHwnd = this->GetSafeHwnd();
+	CString strtemp;
+	boTempUp = false;
+	m_time = 60;
+	//int i = 2334;
+	strtemp.Format(_T("C:\\Lab\\%d"), equipId);
+	CreateDirectory(strtemp, NULL);
 	pParam->pClient = this;
 	m_hSaveThread = CreateThread(NULL, 0, SaveData, pParam, 0, &dwThreadId);
 }
@@ -89,7 +95,7 @@ BOOL CLookupSocket::Send( void )
 {
 	DWORD	dwNumberOfBytesSent;	//发送数据字节数 
 	DWORD	dwFlags = 0;			//标志
-	int		nErrCode;				//返回值
+	int		nErrCode;			//返回值
 
 	//if (m_strWord.IsEmpty())
 	//{
@@ -259,6 +265,59 @@ BOOL CLookupSocket::RecvPacket( void )
 		vector<BYTE> tempvec(mybyte, mybyte + dwBytesRecved);
 		m_counterQue.push(tempvec);
 	}
+	else if (m_hdrRecv.type == LAB_NAME)
+	{
+		//char *mybyte = new char[m_hdrRecv.len];
+		//int nReadLen = recv(m_s, mybyte, m_hdrRecv.len, 0);
+		//if (SOCKET_ERROR == nReadLen)
+		//{
+		//	if (WSAEWOULDBLOCK == WSAGetLastError())
+		//	{
+		//		return TRUE;
+		//	}
+		//	return FALSE;
+		//}
+		CString tempCstr = Utf8ToUnicode(LPCSTR((char*)mybyte)).c_str();
+		lab_name = UnicodeToUtf8(LPCWSTR(tempCstr));
+		//lab_name = lab_name.substr(m_hdrRecv.len);
+		//lab_name = (char*)mybyte;
+		//lab_name = "Default.lab";
+		string tempSql = "update equipment set elabname = '" + lab_name + "' where eid = " + to_string(eid) + ";";
+		m_sqlUser.writeDataToDB(tempSql);
+		string desFileName = "C:\\Lab\\" +to_string(eid)+"\\" +lab_name;
+		ofstream desFile;
+		desFile.open(desFileName.c_str(), ios::binary | ios::trunc);
+		desFile.close();
+	}
+	else if (m_hdrRecv.type == PRINT_CE)
+	{
+		//const int bufferSize = 1024;
+		//char buffer[bufferSize] = { 0 };
+		//int readLen = 0;
+		string desFileName = "C:\\Lab\\" + to_string(eid) + "\\" + lab_name;
+		ofstream desFile;
+		desFile.open(desFileName.c_str(), ios::binary | ios::app);
+		if (!desFile)
+		{
+			return FALSE;
+		}
+
+		//readLen = recv(m_s, buffer, m_hdrRecv.len, 0);
+		//if (SOCKET_ERROR == readLen)
+		//{
+		//	if (WSAEWOULDBLOCK == WSAGetLastError())
+		//	{
+		//		return TRUE;
+		//	}
+		//	return FALSE;
+		//}
+		//else
+		{
+			desFile.write(wsaRecv.buf, wsaRecv.len);
+		}
+
+		desFile.close();
+	}
 	//CString outStr = _T("");
 	//CString tempstr;
 	//for (int i = 0; i < wsaRecv.len; i++)
@@ -357,7 +416,6 @@ DWORD WINAPI CLookupSocket::getstatu(void *pParam)
 	pClientS->staSolLevFau =to_string(pClientS->GETnBIT_from_bytStatus(4, 5, 1) == _T("1") ? true : false) + to_string(pClientS->GETnBIT_from_bytStatus(4, 4, 1) == _T("1") ? true : false);  //'溶剂液位状态
 	pClientS->staInkLevFau =to_string(pClientS->GETnBIT_from_bytStatus(4, 7, 1) == _T("1") ? true : false) + to_string(pClientS->GETnBIT_from_bytStatus(4, 6, 1) == _T("1") ? true : false);  //'墨水液位状态
 	pClientS->staPrnting = (pClientS->GETnBIT_from_bytStatus(5, 0, 1) == _T("1") ? true : false); // '打印中
-	//'staBufOveFau = IIf(pClientS->GETnBIT_from_bytStatus(5, 2, 1)==_T("1"));  // '文本buf溢出
 	pClientS->staHigVolSwi = (pClientS->GETnBIT_from_bytStatus(5, 3, 1) == _T("1") ? true : false); //'高压开关
 	pClientS->staActProSen = (pClientS->GETnBIT_from_bytStatus(5, 4, 1) == _T("1") ? true : false); //'电眼当前电平
 	pClientS->staProSenFas = (pClientS->GETnBIT_from_bytStatus(5, 5, 1) == _T("1") ? true : false);  ////'电眼过快
@@ -365,7 +423,6 @@ DWORD WINAPI CLookupSocket::getstatu(void *pParam)
 	pClientS->staValFau = (pClientS->GETnBIT_from_bytStatus(5, 7, 1) == _T("1") ? true : false);  //'阀故障
 	pClientS->staPrinted = (pClientS->GETnBIT_from_bytStatus(6, 0, 1) == _T("1") ? true : false); //'打印完成
 	pClientS->staRemPrinSwi = (pClientS->GETnBIT_from_bytStatus(6, 1, 1) == _T("1") ? true : false); //  '远程打印开关
-	//'staBufFul = (pClientS->GETnBIT_from_bytStatus(6, 2, 1)==_T("1"));   //'文本buf满
 	pClientS->staBufRea = (pClientS->GETnBIT_from_bytStatus(6, 3, 1) == _T("1") ? true : false);  //'信息准备好
 	pClientS->staEncDir = (pClientS->GETnBIT_from_bytStatus(6, 4, 1) == _T("1") ? true : false);  //'编码器方向
 	pClientS->staLinFas = (pClientS->GETnBIT_from_bytStatus(6, 5, 1) == _T("1") ? true : false);  //'编码器过快
@@ -451,6 +508,14 @@ void CLookupSocket::SaveTempDataToMysql()
 {
 	if (!boTempUp)
 	{
+		string selectStr = "select * from tempdata where equipment_id =" + to_string(eid) + ";";
+		vector<vector<string>> tempVec;
+		m_sqlUser.getDatafromDB(selectStr, tempVec);
+		if (tempVec.size()>0)
+		{
+			boTempUp = true;
+			return;
+		}
 		string itable = "insert into tempdata (tvalue,tcnl,equipment_id) values";
 		itable = itable + "(" + to_string(staBumMod) + ",1," + to_string(eid) + "),";//'泵速或者压力模式
 		itable = itable + "(" + to_string(staBum) + ",2," + to_string(eid) + "),";//开关泵
@@ -472,6 +537,8 @@ void CLookupSocket::SaveTempDataToMysql()
 		itable = itable + "(" + to_string(staHigVolSwi) + ",18," + to_string(eid) + "),";//高压开关
 		itable = itable + "(" + to_string(staProCou) + ",19," + to_string(eid) + "),";
 		itable = itable + "(" + to_string(staPriCou) + ",20," + to_string(eid) + "),";
+		itable = itable + "(" + to_string(staPrnting) + ",26," + to_string(eid) + "),";
+		itable = itable + "(" + to_string(staActProSen) + ",27," + to_string(eid) + ");";//电眼当前电平
 		boTempUp = m_sqlUser.writeDataToDB(itable);
 	} 
 	else
@@ -498,7 +565,10 @@ void CLookupSocket::SaveTempDataToMysql()
 		itable += " when tcnl=18 then " + to_string(staHigVolSwi);
 		itable += " when tcnl=19 then " + to_string(staProCou);
 		itable += " when tcnl=20 then " + to_string(staPriCou);
-		itable += " end )where tcnl in (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20) and equipment_id=" + to_string(eid) + ";";
+		itable += " when tcnl=26 then " + to_string(staPrnting);
+		itable += " when tcnl=27 then " + to_string(staActProSen);
+		itable += " end )where tcnl in (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,26,27) and equipment_id=" + to_string(eid) + ";";
+		m_sqlUser.writeDataToDB(itable);
 	}
 }
 
@@ -548,23 +618,87 @@ void CLookupSocket::SaveCounterToMysql()
 }
 void CLookupSocket::saveDataToMySQL()
 {
+	if (m_time<SAVETIME)
+	{
+		m_time++;
+		return;
+	}
+	m_time = 0;
 	string itable = "insert into data (dtime,dvalue,dcnl,equipment_id) values";
-	itable = itable + "(now()," + to_string(staPrnting) + ",1,"+to_string(eid)+"),";
-	itable = itable + "(now()," + to_string(staPressure) + ",4," + to_string(eid) + "),";
-	itable = itable + "(now()," + to_string(staBumSpe) + ",5," + to_string(eid) + "),";
-	itable = itable + "(now()," + to_string(staInkTem) + ",6," + to_string(eid) + "),";
-	itable = itable + "(now()," + to_string(staPriHeaTem) + ",7," + to_string(eid) + "),";
-	itable = itable + "(now()," + to_string(staInkLev) + ",8," + to_string(eid) + "),";
-	itable = itable + "(now()," + to_string(staSolLev) + ",9," + to_string(eid) + "),";
-	itable = itable + "(now()," + to_string(staTarVis) + ",10," + to_string(eid) + "),";
-	itable = itable + "(now()," + to_string(staActVis) + ",11," + to_string(eid) + "),";
-	itable = itable + "(now()," + to_string(staHigVol) + ",12," + to_string(eid) + "),";
-	itable = itable + "(now()," + to_string(staAutModVol) + ",13," + to_string(eid) + "),";
-	itable = itable + "(now()," + to_string(staPhase) + ",14," + to_string(eid) + "),";
-	itable = itable + "(now()," + to_string(staInkLifeTime) + ",15," + to_string(eid) + "),";//墨水时间
-	itable = itable + "(now()," + to_string(staEncFre) + ",16," + to_string(eid) + "),";//编码器频率
-	itable = itable + "(now()," + to_string(staPixDotNee) + ",17," + to_string(eid) + ");";//列点数
-	bool testbo = m_sqlUser.writeDataToDB(itable);
+	//itable = itable + "(now()," + to_string(staPrnting) + ",1,"+to_string(eid)+"),";
+	if (staPressure1!= staPressure)
+	{
+		staPressure1 = staPressure;
+		itable = itable + "(now()," + to_string(staPressure) + ",1," + to_string(eid) + "),";
+	}
+	if (staBumSpe1!= staBumSpe)
+	{
+		staBumSpe1 = staBumSpe;
+		itable = itable + "(now()," + to_string(staBumSpe) + ",2," + to_string(eid) + "),";
+	}
+	if(staInkTem1!= staInkTem)
+	{
+		staInkTem != staInkTem;
+		itable = itable + "(now()," + to_string(staInkTem) + ",3," + to_string(eid) + "),";
+	}
+	if (staPriHeaTem1!= staPriHeaTem)
+	{
+		staPriHeaTem1 = staPriHeaTem;
+		itable = itable + "(now()," + to_string(staPriHeaTem) + ",4," + to_string(eid) + "),";
+	}
+	if (staInkLev1!= staInkLev)
+	{
+		staInkLev1 = staInkLev;
+		itable = itable + "(now()," + to_string(staInkLev) + ",5," + to_string(eid) + "),";
+	}
+	if (staSolLev1!= staSolLev)
+	{
+		staSolLev1 = staSolLev;
+		itable = itable + "(now()," + to_string(staSolLev) + ",6," + to_string(eid) + "),";
+	}
+	if (staTarVis1!= staTarVis)
+	{
+		staTarVis1 = staTarVis;
+		itable = itable + "(now()," + to_string(staTarVis) + ",7," + to_string(eid) + "),";
+	}
+	if (staActVis1!= staActVis)
+	{
+		staActVis1 = staActVis;
+		itable = itable + "(now()," + to_string(staActVis) + ",8," + to_string(eid) + "),";
+	}
+	if (staHigVol1!= staHigVol)
+	{
+		staHigVol1 = staHigVol;
+		itable = itable + "(now()," + to_string(staHigVol) + ",9," + to_string(eid) + "),";
+	}
+	if (staAutModVol1!= staAutModVol)
+	{
+		staAutModVol1 = staAutModVol;
+		itable = itable + "(now()," + to_string(staAutModVol) + ",10," + to_string(eid) + "),";
+	}
+	if (staPhase1!= staPhase)
+	{
+		staPhase1 = staPhase;
+		itable = itable + "(now()," + to_string(staPhase) + ",11," + to_string(eid) + "),";
+	}
+	if (staInkLifeTime1!= staInkLifeTime)
+	{
+		staInkLifeTime1 = staInkLifeTime;
+		itable = itable + "(now()," + to_string(staInkLifeTime) + ",12," + to_string(eid) + "),";//墨水时间
+	}
+	if (staEncFre1!= staEncFre)
+	{
+		staEncFre1 = staEncFre;
+		itable = itable + "(now()," + to_string(staEncFre) + ",13," + to_string(eid) + "),";//编码器频率
+	}
+	if (staPixDotNee1!= staPixDotNee)
+	{
+		staPixDotNee1 = staPixDotNee;
+		itable = itable + "(now()," + to_string(staPixDotNee) + ",14," + to_string(eid) + "),";//列点数
+	}
+	string itable1 = itable.substr(0,(itable.size() - 1));
+	itable1 += ";";
+	bool testbo = m_sqlUser.writeDataToDB(itable1);
 
 	SaveTempDataToMysql();
 	SaveCounterToMysql();
@@ -586,7 +720,7 @@ void CLookupSocket::SaveFaultToMysql()
 		//faultList.AddString(csMsg);
 		//faultList.SetFont(theApp.m_StaticFont);
 		string itable = "insert into fault (ftime,fvalue,fcnl,equipment_id) values";
-		itable = itable + "(now()," +"'Ink temperature sensor fault'" + ",1," + to_string(eid) + ");";//列点数
+		itable = itable + "(now()," +"'Ink temperature sensor fault'" + ",1," + to_string(eid) + ");";
 		staInkTemSenFauLas = m_sqlUser.writeDataToDB(itable);
 	}
 	else if (staInkTemSenFau == false && staInkTemSenFauLas == true)
@@ -609,8 +743,8 @@ void CLookupSocket::SaveFaultToMysql()
 		//faultList.AddString(csMsg);
 		//faultList.SetFont(theApp.m_StaticFont);
 		string itable = "insert into fault (ftime,fvalue,fcnl,equipment_id) values";
-		itable = itable + "(now()," + "'Printhead temperature sensor fault'" + ",1," + to_string(eid) + ");";//列点数
-		staInkTemSenFauLas = m_sqlUser.writeDataToDB(itable);
+		itable = itable + "(now()," + "'Printhead temperature sensor fault'" + ",1," + to_string(eid) + ");";
+		staPriHeaTemFauLas = m_sqlUser.writeDataToDB(itable);
 	}
 	else if (staPriHeaTemFau == false && staPriHeaTemFauLas == true)
 	{
@@ -644,8 +778,8 @@ void CLookupSocket::SaveFaultToMysql()
 		//faultList.AddString(csMsg);
 		//faultList.SetFont(theApp.m_StaticFont);
 		string itable = "insert into fault (ftime,fvalue,fcnl,equipment_id) values";
-		itable = itable + "(now()," + "'Pump speed abnormal'" + ",1," + to_string(eid) + ");";//列点数
-		staInkTemSenFauLas = m_sqlUser.writeDataToDB(itable);
+		itable = itable + "(now()," + "'Pump speed abnormal'" + ",1," + to_string(eid) + ");";
+		staBumSpeOveFauLas = m_sqlUser.writeDataToDB(itable);
 	}
 	else if (staBumSpeOveFau == false && staBumSpeOveFauLas == true)
 	{
@@ -678,8 +812,8 @@ void CLookupSocket::SaveFaultToMysql()
 		//faultList.AddString(csMsg);
 		//faultList.SetFont(theApp.m_StaticFont);
 		string itable = "insert into fault (ftime,fvalue,fcnl,equipment_id) values";
-		itable = itable + "(now()," + "'Pressure abnormal'" + ",1," + to_string(eid) + ");";//列点数
-		staInkTemSenFauLas = m_sqlUser.writeDataToDB(itable);
+		itable = itable + "(now()," + "'Pressure abnormal'" + ",1," + to_string(eid) + ");";
+		staPreOveFauLas = m_sqlUser.writeDataToDB(itable);
 	}
 	else if (staPreOveFau == false && staPreOveFauLas == true)
 	{
@@ -701,15 +835,43 @@ void CLookupSocket::SaveFaultToMysql()
 		//csMsg = theApp.myModuleMain.string2CString(m_tmpt) + csMsg;
 		//faultList.AddString(csMsg);
 		//faultList.SetFont(theApp.m_StaticFont);
-		string itable = "insert into fault (ftime,fvalue,fcnl,equipment_id) values";
-		itable = itable + "(now()," + "'Ink Visco abnormal'" + ",1," + to_string(eid) + ");";//列点数
-		staInkTemSenFauLas = m_sqlUser.writeDataToDB(itable);
+
+		if (isHigh)
+		{
+			string itable = "insert into fault (ftime,fvalue,fcnl,equipment_id) values";
+			itable = itable + "(now()," + "'Ink Visco high'" + ",1," + to_string(eid) + ");";//列点数
+			staVisAbnFauLas = m_sqlUser.writeDataToDB(itable);
+		}
+		else
+		{
+			string itable = "insert into fault (ftime,fvalue,fcnl,equipment_id) values";
+			itable = itable + "(now()," + "'Ink Visco low'" + ",1," + to_string(eid) + ");";//列点数
+			staVisAbnFauLas = m_sqlUser.writeDataToDB(itable);
+		}
+
 	}
 	else if (staVisAbnFau == false && staVisAbnFauLas == true)
 	{
-		string upTable = "update fault set fcnl=3 where equipment_id=" + to_string(eid) + " and fvalue='Ink Visco abnormal';";
-		if (m_sqlUser.writeDataToDB(upTable))
-			staVisAbnFauLas = false;
+		if (staActVis>staTarVis)
+		{
+			
+			string upTable = "update fault set fcnl=3 where equipment_id=" + to_string(eid) + " and fvalue='Ink Visco high';";
+			if (m_sqlUser.writeDataToDB(upTable))
+			{
+				staVisAbnFauLas = false;
+				isHigh = true;
+			}
+		} 
+		else
+		{
+			string upTable = "update fault set fcnl=3 where equipment_id=" + to_string(eid) + " and fvalue='Ink Visco low';";
+			if (m_sqlUser.writeDataToDB(upTable))
+			{
+				staVisAbnFauLas = false;
+				isHigh = false;
+			}
+		}
+
 	}
 
 
@@ -727,7 +889,7 @@ void CLookupSocket::SaveFaultToMysql()
 		//faultList.SetFont(theApp.m_StaticFont);
 		string itable = "insert into fault (ftime,fvalue,fcnl,equipment_id) values";
 		itable = itable + "(now()," + "'Viscometer fault'" + ",1," + to_string(eid) + ");";//列点数
-		staInkTemSenFauLas = m_sqlUser.writeDataToDB(itable);
+		staVisSenFauLas = m_sqlUser.writeDataToDB(itable);
 	}
 	else if (staVisSenFau == false && staVisSenFauLas == true)
 	{
@@ -769,7 +931,7 @@ void CLookupSocket::SaveFaultToMysql()
 			//m_Ink->GetDlgItem(IDC_INKFLOW_EDIT)->SetWindowText(_T("Abnormal"));
 			string itable = "insert into fault (ftime,fvalue,fcnl,equipment_id) values";
 			itable = itable + "(now()," + "'Recyle fault'" + ",1," + to_string(eid) + ");";//列点数
-			staInkTemSenFauLas = m_sqlUser.writeDataToDB(itable);
+			staInkFloFauLas = m_sqlUser.writeDataToDB(itable);
 		}
 
 		else if (staInkFloFau == false)
@@ -810,7 +972,7 @@ void CLookupSocket::SaveFaultToMysql()
 		//faultList.SetFont(theApp.m_StaticFont);
 		string itable = "insert into fault (ftime,fvalue,fcnl,equipment_id) values";
 		itable = itable + "(now()," + "'Fan fault'" + ",1," + to_string(eid) + ");";//列点数
-		staInkTemSenFauLas = m_sqlUser.writeDataToDB(itable);
+		staFanFauLas = m_sqlUser.writeDataToDB(itable);
 	}
 	else if (staFanFau == false && staFanFauLas == true)
 	{
@@ -838,7 +1000,7 @@ void CLookupSocket::SaveFaultToMysql()
 		//faultList.SetFont(theApp.m_StaticFont);
 		string itable = "insert into fault (ftime,fvalue,fcnl,equipment_id) values";
 		itable = itable + "(now()," + "'Charge fault'" + ",1," + to_string(eid) + ");";//列点数
-		staInkTemSenFauLas = m_sqlUser.writeDataToDB(itable);
+		staChaFauLas = m_sqlUser.writeDataToDB(itable);
 	}
 	else if (staChaFau == false && staChaFauLas == true)
 	{
@@ -866,7 +1028,7 @@ void CLookupSocket::SaveFaultToMysql()
 		//faultList.SetFont(theApp.m_StaticFont);
 		string itable = "insert into fault (ftime,fvalue,fcnl,equipment_id) values";
 		itable = itable + "(now()," + "'Phase fault'" + ",1," + to_string(eid) + ");";//列点数
-		staInkTemSenFauLas = m_sqlUser.writeDataToDB(itable);
+		staPhaFauLas = m_sqlUser.writeDataToDB(itable);
 	}
 	else if (staPhaFau == false && staPhaFauLas == true)
 	{
@@ -901,7 +1063,7 @@ void CLookupSocket::SaveFaultToMysql()
 		//faultList.SetFont(theApp.m_StaticFont);
 		string itable = "insert into fault (ftime,fvalue,fcnl,equipment_id) values";
 		itable = itable + "(now()," + "'High voltage fault'" + ",1," + to_string(eid) + ");";//列点数
-		staInkTemSenFauLas = m_sqlUser.writeDataToDB(itable);
+		staHigVolFauLas = m_sqlUser.writeDataToDB(itable);
 	}
 	else if (staHigVolFau == false && staHigVolFauLas == true)
 	{
@@ -931,7 +1093,7 @@ void CLookupSocket::SaveFaultToMysql()
 		//csMsg = theApp.myModuleMain.string2CString(m_tmpt) + csMsg;
 		//faultList.AddString(csMsg);
 		//faultList.SetFont(theApp.m_StaticFont);
-		///*picAlarmBlue.Tag = "im003"
+		//picAlarmBlue.Tag = "im003"
 		//picAlarmBlue.Image = My.Resources.ResourceBng.im003*/
 		//m_PicHead.SetBlueAlarm(true);
 		string itable = "insert into fault (ftime,fvalue,fcnl,equipment_id) values";
